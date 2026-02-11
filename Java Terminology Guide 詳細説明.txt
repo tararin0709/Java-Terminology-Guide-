@@ -1,0 +1,839 @@
+★【パッケージ構成】
+
+com.accounting
+├── controller/    ← 受付（API）
+├── service/       ← 計算（ビジネスロジック）  
+└── model/         ← データ（Request/Response）
+
+⚠️1. データモデル層（Model）
+
+★DepreciationRequest.java
+
+package com.accounting.model;
+
+意味：「このクラスはcom.accounting.modelという住所に住んでいます」
+
+com.accounting = 会計システム全体
+
+.model = データの入れ物フォルダ
+
+
+
+
+import java.math.BigDecimal;
+
+意味：「高精度計算ライブラリを使います」
+
+金融システムはfloat/double禁止
+
+1円単位の絶対精度が必要
+
+
+
+
+public class DepreciationRequest {
+
+意味：「減価償却のリクエストデータを入れる箱です」
+
+
+
+private BigDecimal cost;
+意味：「取得原価」
+
+例：建物5,000,000円、車2,000,000円
+
+BigDecimal = 金額は全てこれ
+
+
+
+private int usefulLife;
+意味：「耐用年数」
+
+例：建物47年、車6年、パソコン4年
+
+int = 年数は整数だからOK
+
+
+
+private BigDecimal residualValue;
+
+意味：「残存価額」
+
+古い会計基準：取得原価の10%
+
+新しい会計基準：0円も可
+
+
+
+private String method;
+
+意味：「償却方法」
+
+"STRAIGHT_LINE" = 定額法
+
+"DECLINING_BALANCE" = 定率法
+
+
+
+
+// getters and setters
+
+意味：「SpringがJSONを変換するための通路」
+
+setCost() = JSONのcostをここに入れる
+
+getCost() = ここから値を取り出す
+
+
+
+
+
+⚠️2. サービス層（Service）
+
+★DepreciationService.java（減価償却）
+
+クラス定義
+package com.accounting.service;
+意味：「このクラスは計算ロジックを担当します」
+
+
+import com.accounting.model.DepreciationRequest;
+import com.accounting.model.DepreciationResponse;
+import com.accounting.model.DepreciationSchedule;
+
+意味：「必要なデータの箱をimport」
+
+
+import org.springframework.stereotype.Service;
+
+意味：「Springさん、このクラスはビジネスロジックです」
+
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+意味：「高精度計算と丸め処理を使います」
+
+
+import java.util.ArrayList;
+import java.util.List;
+
+意味：「リスト（配列の進化版）を使います」
+
+
+@Service
+
+意味：「このクラスはサービスクラスです」
+
+Springが自動でインスタンス化
+
+他のクラスから@Autowiredで呼び出し可能
+
+
+
+インスタンス化とは
+インスタンス化は、
+クラス（設計図）から実際に使える
+オブジェクト（実体）を生成することです。
+
+簡単な例え
+クラス = 家の設計図
+
+インスタンス化 = 設計図から実際の家を建てること
+
+インスタンス = 建てられた実際の家
+
+
+
+public class DepreciationService {
+
+意味：「減価償却計算機」
+
+
+
+メソッド定義
+
+public DepreciationResponse calculate(DepreciationRequest request) {
+
+意味：「リクエストを受け取って、レスポンスを返す計算メソッド」
+
+
+
+リクエストから値を取り出す
+
+BigDecimal cost = request.getCost();
+int usefulLife = request.getUsefulLife();
+BigDecimal residualValue = request.getResidualValue();
+String method = request.getMethod();
+
+意味：「箱から中身を取り出して変数にセット」
+
+
+
+レスポンスの箱を準備
+
+DepreciationResponse response = new DepreciationResponse();
+
+意味：「計算結果を入れる空の箱を作る」
+
+
+
+response.setCost(cost);
+response.setUsefulLife(usefulLife);
+response.setResidualValue(residualValue);
+response.setMethod(method);
+
+意味：「入力された値をそのままレスポンスにもセット（確認用）」
+
+
+
+
+償却スケジュールの準備
+
+List<DepreciationSchedule> schedule = new ArrayList<>();
+意味：「毎年の償却費を入れるリストを作る」
+
+ArrayList<> = 可変長配列
+
+<DepreciationSchedule> = 中身は減価償却スケジュール型だけ
+
+
+
+★【定額法ブロック】
+
+if ("STRAIGHT_LINE".equals(method)) {
+
+意味：「もし償却方法が'STRAIGHT_LINE'（定額法）なら」
+
+
+
+分解解説：
+
+cost.subtract(residualValue)	取得原価 - 残存価額	償却可能限度額
+
+
+.divide(BigDecimal.valueOf(usefulLife), 2, RoundingMode.HALF_UP)	
+÷ 耐用年数	1年あたりの償却費
+
+
+, 2	小数点第2位まで	円単位の計算
+
+
+RoundingMode.HALF_UP	四捨五入	端数処理
+例：500万円 - 50万円 = 450万円
+
+
+450万円 ÷ 7年 = 642,857.14...円
+→ 四捨五入で 642,857円
+
+
+
+簿価の初期化
+
+BigDecimal bookValue = cost;
+
+意味：「1年目の簿価 = 取得原価」
+
+
+
+年数分ループ
+
+for (int year = 1; year <= usefulLife; year++) {
+
+意味：「1年目から耐用年数まで繰り返す」
+
+
+
+簿価を減らす
+
+bookValue = bookValue.subtract(annualDepreciation);
+
+意味：「今年の償却費を簿価から引く」
+
+
+
+残存価額を下回らないようにする
+
+if (bookValue.compareTo(residualValue) < 0) {
+    bookValue = residualValue;
+    }
+
+compareTo()の返り値：
+
+-1 = bookValue < residualValue
+
+0 = bookValue = residualValue
+
+1 = bookValue > residualValue
+
+意味：「もし簿価が残存価額より低くなったら、残存価額に固定」
+
+
+
+
+1年分のデータを作成
+
+DepreciationSchedule yearSchedule = new DepreciationSchedule();
+yearSchedule.setYear(year);
+yearSchedule.setDepreciation(annualDepreciation);
+yearSchedule.setBookValue(bookValue);
+schedule.add(yearSchedule);
+
+意味：「今年のデータを作ってリストに追加」
+
+
+
+レスポンスにセット
+
+response.setAnnualDepreciation(annualDepreciation);
+
+意味：「年間償却費をセット」
+
+
+
+★【定率法ブロック】
+
+        } else {
+
+意味：「定額法以外（＝定率法）なら」
+
+
+
+償却率の計算
+
+double rate = 1 - Math.pow(
+residualValue.divide(cost, 10, RoundingMode.HALF_UP).doubleValue(),
+1.0 / usefulLife
+);
+
+
+
+数学的公式：
+
+text
+償却率 = 1 - (残存価額/取得原価)^(1/耐用年数)
+
+
+分解解説：
+
+コード	意味
+residualValue.divide(cost, 10, RoundingMode.HALF_UP)	残存価額÷取得原価（小数点第10位まで）
+.doubleValue()	やむを得ずdoubleに変換
+Math.pow(..., 1.0/usefulLife)	(値)の(1/耐用年数)乗
+1 - ...	1から引く
+⚠️ ここが技術的限界：
+
+Math.pow()はdoubleしか受け付けない
+
+金融システムで唯一のやむを得ないdouble使用箇所
+
+でもその前の除算はBigDecimalで高精度に計算している
+
+
+
+簿価の初期化
+
+BigDecimal bookValue = cost;
+BigDecimal annualDepreciation = BigDecimal.ZERO;
+
+意味：「簿価は取得原価、償却費は0で初期化」
+
+
+
+
+年数分ループ
+for (int year = 1; year <= usefulLife; year++) {
+
+
+
+最終年の特別処理
+
+if (year == usefulLife) {
+annualDepreciation = bookValue.subtract(residualValue);
+
+意味：「最終年は簿価 - 残存価額を一気に償却」
+
+
+
+通常年の計算
+
+  } else {
+     annualDepreciation = bookValue.multiply(BigDecimal.valueOf(rate))
+       .setScale(2, RoundingMode.HALF_UP);
+
+意味：「簿価 × 償却率（四捨五入）」
+
+
+
+
+簿価の更新
+bookValue = bookValue.subtract(annualDepreciation);
+
+
+
+スケジュール追加
+
+DepreciationSchedule yearSchedule = new DepreciationSchedule();
+yearSchedule.setYear(year);
+yearSchedule.setDepreciation(annualDepreciation);
+yearSchedule.setBookValue(bookValue);
+schedule.add(yearSchedule);
+
+
+
+年間償却費をセット
+
+response.setAnnualDepreciation(schedule.get(0).getDepreciation());
+意味：「1年目の償却費を年間償却費として表示」
+
+
+
+
+レスポンス完成
+
+response.setSchedule(schedule);
+response.setTotalDepreciation(cost.subtract(residualValue));
+        
+return response;
+
+意味：「全年度の明細と償却総額をセットして返す」
+
+
+
+★TaxEffectService.java（税効果会計）
+クラス定義
+
+@Service
+public class TaxEffectService {
+
+意味：「税効果会計計算機」
+
+
+
+メソッド定義
+
+public TaxEffectResponse calculate(TaxEffectRequest request) {
+
+
+
+リクエスト取得
+
+BigDecimal temporaryDifference = request.getTemporaryDifference();
+BigDecimal effectiveTaxRate = request.getEffectiveTaxRate();
+String differenceType = request.getDifferenceType();
+
+
+繰延税金の計算
+
+BigDecimal deferredTax = temporaryDifference
+  .multiply(effectiveTaxRate)
+  .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+公式：繰延税金 = 一時差異 × 実効税率 ÷ 100
+
+例：
+
+一時差異 2,500,000円
+
+実効税率 30.42%
+
+2,500,000 × 30.42 ÷ 100 = 760,500円
+
+
+
+レスポンス作成
+
+TaxEffectResponse response = new TaxEffectResponse();
+response.setTemporaryDifference(temporaryDifference);
+response.setEffectiveTaxRate(effectiveTaxRate);
+response.setDifferenceType(differenceType);
+response.setDeferredTax(deferredTax);
+
+
+
+仕訳の自動生成（超重要）
+
+  String journalEntry;
+  if ("ASSET".equals(differenceType)) {
+     journalEntry = String.format(
+      "(借) 繰延税金資産 %s円 (貸) 法人税等調整額 %s円",
+        formatCurrency(deferredTax),
+        formatCurrency(deferredTax)
+            );
+
+        } else {
+            journalEntry = String.format(
+                "(借) 法人税等調整額 %s円 (貸) 繰延税金負債 %s円",
+                formatCurrency(deferredTax),
+                formatCurrency(deferredTax)
+            );
+        }
+        response.setJournalEntry(journalEntry);
+
+
+会計的意味：
+
+差異の種類	        　　　　仕訳	                        意味
+ASSET（将来減算一時差異）	繰延税金資産 / 法人税等調整額	将来税金が減る（前払い）
+LIABILITY（将来加算一時差異）	法人税等調整額 / 繰延税金負債	将来税金が増える（未払い）
+
+
+
+
+通貨フォーマット
+
+private String formatCurrency(BigDecimal amount) {
+    return String.format("%,.0f", amount);
+    }
+
+意味：「3桁カンマ区切り、小数点なし」
+
+%, = 3桁カンマ
+
+.0f = 小数点0桁
+
+例：760500 → 760,500
+
+
+
+★UpstreamService.java（アップストリーム）
+
+クラス定義
+
+@Service
+public class UpstreamService {
+意味：「アップストリーム取引計算機」
+
+
+メソッド定義
+
+public UpstreamResponse calculate(UpstreamRequest request) {
+
+
+
+リクエスト取得
+
+BigDecimal transactionAmount = request.getTransactionAmount();
+BigDecimal profitMargin = request.getProfitMargin();
+BigDecimal ownershipPercentage = request.getOwnershipPercentage();
+
+
+
+
+【1】未実現利益の計算
+
+BigDecimal unrealizedProfit = transactionAmount
+   　.multiply(profitMargin)
+     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+公式：未実現利益 = 取引金額 × 利益率 ÷ 100
+
+会計的意味：
+
+子会社が親会社に商品を売った
+
+まだグループ外に売れていない → この利益は「なかったこと」にする
+
+
+
+【2】連結側消去額の計算
+
+BigDecimal consolidatedPortion = unrealizedProfit
+       .multiply(ownershipPercentage)
+        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+公式：連結側消去額 = 未実現利益 × 親会社持分比率 ÷ 100
+
+会計的意味：
+
+親会社の持分だけ親会社の損益から消す
+
+
+
+
+【3】少数株主側負担額の計算
+
+BigDecimal minorityPortion = unrealizedProfit.subtract(consolidatedPortion);
+
+公式：少数株主側負担額 = 未実現利益 - 連結側消去額
+
+⚠️ ここがアップストリームの核心：
+
+ダウンストリーム（親→子）なら全額親会社負担
+
+アップストリーム（子→親）は少数株主にも負担させる
+
+
+
+
+レスポンス作成
+
+UpstreamResponse response = new UpstreamResponse();
+response.setTransactionAmount(transactionAmount);
+response.setProfitMargin(profitMargin);
+response.setOwnershipPercentage(ownershipPercentage);
+response.setUnrealizedProfit(unrealizedProfit);
+response.setConsolidatedPortion(consolidatedPortion);
+response.setMinorityPortion(minorityPortion);
+        
+return response;
+
+
+
+★MinorityInterestService.java（少数株主持分）
+クラス定義
+@Service
+public class MinorityInterestService {
+意味：「少数株主持分計算機」
+
+
+メソッド定義
+public MinorityInterestResponse calculate(MinorityInterestRequest request) {
+
+リクエスト取得
+BigDecimal subsidiaryProfit = request.getSubsidiaryProfit();
+BigDecimal minorityPercentage = request.getMinorityPercentage();
+
+
+【1】少数株主持分の計算
+
+BigDecimal minorityInterest = subsidiaryProfit
+   .multiply(minorityPercentage)
+   .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+公式：少数株主持分 = 子会社利益 × 少数株主持分比率 ÷ 100
+
+
+【2】親会社持分割合の計算
+BigDecimal parentPortion = subsidiaryProfit.subtract(minorityInterest);
+
+公式：親会社持分割合 = 子会社利益 - 少数株主持分
+
+
+【3】親会社持分比率の計算
+BigDecimal parentPercentage = BigDecimal.valueOf(100).subtract(minorityPercentage);
+公式：親会社持分比率 = 100% - 少数株主持分比率
+
+
+レスポンス作成
+
+MinorityInterestResponse response = new MinorityInterestResponse();
+response.setSubsidiaryProfit(subsidiaryProfit);
+response.setMinorityPercentage(minorityPercentage);
+response.setParentPercentage(parentPercentage);
+response.setMinorityInterest(minorityInterest);
+response.setParentPortion(parentPortion);
+
+
+連結仕訳の自動生成
+
+String consolidationEntry = String.format(
+  "(借) 当期純利益 %s円 (貸) 親会社株主に帰属する当期純利益 %s円 / 少数株主持分 %s円",
+     formatCurrency(subsidiaryProfit),
+     formatCurrency(parentPortion),
+     formatCurrency(minorityInterest)
+        );
+     response.setConsolidationEntry(consolidationEntry);
+
+会計的意味：
+
+子会社の利益を親会社と少数株主で山分け
+
+連結財務諸表ではこの仕訳で按分
+
+
+⚠️3. コントローラー層（Controller）
+
+★AccountingController.java
+パッケージとインポート
+
+package com.accounting.controller;
+意味：「このクラスはコントローラーフォルダに住みます」
+
+
+import com.accounting.model.*;
+import com.accounting.service.*;
+意味：「全てのモデルとサービスを使います」
+
+
+import org.springframework.beans.factory.annotation.Autowired;
+意味：「依存性注入のアノテーションを使います」
+
+
+import org.springframework.http.ResponseEntity;
+意味：「HTTPレスポンスを細かく制御します」
+
+
+import org.springframework.web.bind.annotation.*;
+意味：「Web関連アノテーションを全部使います」
+
+
+クラス定義
+
+@RestController
+意味：「このクラスはREST APIの受付口です」
+
+全メソッドが自動で@ResponseBody
+
+JSONを返すController
+
+
+@RequestMapping("/api")
+意味：「このControllerの全APIは/apiから始まります」
+
+
+@CrossOrigin(origins = "*")
+意味：「どのドメインからの呼び出しも許可します」
+
+CORS（Cross-Origin Resource Sharing）対策
+
+フロントエンドが別ドメインでもOK
+
+
+
+public class AccountingController {
+
+依存性注入（DI）
+
+@Autowired
+private DepreciationService depreciationService;
+    
+@Autowired
+private TaxEffectService taxEffectService;
+    
+@Autowired
+private UpstreamService upstreamService;
+    
+@Autowired
+private MinorityInterestService minorityInterestService;
+
+@Autowiredの意味：
+
+「Springさん、このサービスのインスタンスを自動で入れてください」
+
+new DepreciationService() と書かなくていい
+
+
+メモリ効率UP、テスト容易性UP
+
+
+【1】減価償却API
+
+@PostMapping("/depreciation/calculate")
+public ResponseEntity<DepreciationResponse> calculateDepreciation(
+    @RequestBody DepreciationRequest request) {
+        
+    DepreciationResponse response = depreciationService.calculate(request);
+    return ResponseEntity.ok(response);
+    }
+1行ずつ解説：
+
+
+コード	意味
+@PostMapping("/depreciation/calculate")	POSTメソッドで/api/depreciation/calculateに来たらこのメソッド
+ResponseEntity<DepreciationResponse>	HTTPステータスコード付きのレスポンス
+@RequestBody DepreciationRequest request	リクエストボディのJSONをJavaオブジェクトに変換
+depreciationService.calculate(request)	サービス層で計算実行
+ResponseEntity.ok(response)	HTTP 200 OK + ボディ（自動JSON変換）
+
+
+
+【2】税効果会計API
+
+@PostMapping("/tax-effect/calculate")
+
+    public ResponseEntity<TaxEffectResponse> calculateTaxEffect(
+            @RequestBody TaxEffectRequest request) {
+        TaxEffectResponse response = taxEffectService.calculate(request);
+        return ResponseEntity.ok(response);
+    }
+
+
+【3】アップストリームAPI
+
+    @PostMapping("/upstream/calculate")
+
+    public ResponseEntity<UpstreamResponse> calculateUpstream(
+            @RequestBody UpstreamRequest request) {
+        UpstreamResponse response = upstreamService.calculate(request);
+        return ResponseEntity.ok(response);
+    }
+
+
+【4】少数株主持分API
+
+@PostMapping("/minority-interest/calculate")
+    public ResponseEntity<MinorityInterestResponse> calculateMinorityInterest(
+            @RequestBody MinorityInterestRequest request) {
+        MinorityInterestResponse response = minorityInterestService.calculate(request);
+        return ResponseEntity.ok(response);
+    }
+
+
+
+【API一覧】完成
+メソッド　　エンドポイント	　　　　　　リクエスト	　　　　　　　レスポンス	処理内容
+POST	/api/depreciation/calculate	DepreciationRequest	DepreciationResponse	減価償却計算
+POST	/api/tax-effect/calculate	TaxEffectRequest	TaxEffectResponse	税効果会計
+POST	/api/upstream/calculate	　　　　UpstreamRequest	　　　　UpstreamResponse	アップストリーム
+POST	/api/minority-interest/calculate　MinorityInterestRequest　MinorityInterestResponse　少数株主持分
+
+
+
+
+
+
+
+⚠️【総まとめ】このコードから学ぶべきこと
+
+レベル1：絶対に覚える基礎文法
+
+コード	　　　　　　　　　　　　　　　意味	　　　　　　　　　　　重要度
+
+package	　　　　　　　　　　　　　クラスの住所	　　　　　　　　　　⭐⭐⭐
+import	　　　　　　　　　　　外部クラスの利用宣言	　　　　　　⭐⭐⭐
+public class	　　　　　　　　　クラス定義	　　　　　　　　　　⭐⭐⭐
+private 型 変数名	　　　　　フィールド定義	　　　　　　⭐⭐⭐
+メソッド() { }	　　　　　　　　　メソッド定義	　　　　　　　　　　⭐⭐⭐
+if (条件) { } else { }	　　　　　　条件分岐	　　　　　　　　　　⭐⭐⭐
+for (初期化; 条件; 更新) { }	　　繰り返し	　　　　　　　　　　⭐⭐⭐
+new クラス名()	　　　　　　　　インスタンス生成	　　　　　　⭐⭐⭐
+リスト.add(値)	　　　　　　　　　リストに追加	　　　　　　　　　　⭐⭐⭐
+リスト.get(添字)	　　　　　リストから取得	　　　　　　⭐⭐⭐
+
+
+レベル2：Spring Boot必須アノテーション
+
+アノテーション	　　　　意味	　　　　　　　　　使用場所
+
+@Service	　ビジネスロジッククラス	　Service層
+@RestController	　API受付クラス	　　　　　　　　Controller層
+@Autowired	　依存性注入	　　　　　　　　Controller層
+@PostMapping	　POSTメソッド受付	　　　　Controller層
+@RequestBody	　JSON→Java変換	　　　　Controller層引数
+@CrossOrigin	　CORS許可	　　　　　　　　Controller層
+
+
+レベル3：BigDecimalマスター
+
+メソッド	　　　　　意味	　　　　　　　　　会計での使用例
+
+add()	　　　　　　　　足し算	　　　　　　　　取得原価 + 改良費
+subtract()	　　　　引き算	　　　　　　　　取得原価 - 残存価額
+multiply()	　　　　掛け算	　　　　　　　未実現利益 × 持分比率
+divide(値, 桁, 丸め)	割り算（桁指定）	　償却費の計算
+compareTo()	　　　　　比較	　　　　　　　　　簿価 vs 残存価額
+setScale()	　　　小数点桁数指定	　　　　　　四捨五入
+
+
+レベル4：会計知識の実装ポイント
+
+コード行	　　　　　　　　　　　　　会計知識	　　　　　　なぜ必要か
+cost.subtract(residualValue)	　　　償却可能限度額	　　　法定耐用年数で割るため
+.divide(..., 2, HALF_UP)	　　　円未満四捨五入	　　　　　1円単位の正確性
+if (year == usefulLife)	　　　　　　　　最終年調整	　　　　残存価額ぴったりにする
+"ASSET"/"LIABILITY"	　　　　　　　一時差異の種類	　　　　　仕訳が逆になる
+unrealizedProfit - consolidatedPortion	少数株主負担	　　　　アップストリームの核心
+
+
+
