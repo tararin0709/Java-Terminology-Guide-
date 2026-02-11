@@ -772,11 +772,11 @@ ResponseEntity.ok(response)	HTTP 200 OK + ボディ（自動JSON変換）
 
 
 【API一覧】完成
-メソッド　　エンドポイント	　　　　　　リクエスト	　　　　　　　レスポンス	処理内容
-POST	/api/depreciation/calculate	DepreciationRequest	DepreciationResponse	減価償却計算
-POST	/api/tax-effect/calculate	TaxEffectRequest	TaxEffectResponse	税効果会計
-POST	/api/upstream/calculate	　　　　UpstreamRequest	　　　　UpstreamResponse	アップストリーム
-POST	/api/minority-interest/calculate　MinorityInterestRequest　MinorityInterestResponse　少数株主持分
+メソッド　　エンドポイント	　　　　　　リクエスト	　　　　　      レスポンス	                処理内容
+POST	/api/depreciation/calculate	 DepreciationRequest	  DepreciationResponse	          減価償却計算
+POST	/api/tax-effect/calculate	 TaxEffectRequest	      TaxEffectResponse	               税効果会計
+POST	/api/upstream/calculate	　　　　UpstreamRequest	　　　　     UpstreamResponse	     アップストリーム
+POST	/api/minority-interest/calculate　 MinorityInterestRequest　MinorityInterestResponse　少数株主持分
 
 
 
@@ -788,27 +788,27 @@ POST	/api/minority-interest/calculate　MinorityInterestRequest　MinorityIntere
 
 レベル1：絶対に覚える基礎文法
 
-コード	　　　　　　　　　　　　　　　意味	　　　　　　　　　　　重要度
+コード	　　　　　　　　　　　　　　　意味	　　　　　　　　　　　　重要度
 
-package	　　　　　　　　　　　　　クラスの住所	　　　　　　　　　　⭐⭐⭐
-import	　　　　　　　　　　　外部クラスの利用宣言	　　　　　　⭐⭐⭐
-public class	　　　　　　　　　クラス定義	　　　　　　　　　　⭐⭐⭐
-private 型 変数名	　　　　　フィールド定義	　　　　　　⭐⭐⭐
-メソッド() { }	　　　　　　　　　メソッド定義	　　　　　　　　　　⭐⭐⭐
-if (条件) { } else { }	　　　　　　条件分岐	　　　　　　　　　　⭐⭐⭐
-for (初期化; 条件; 更新) { }	　　繰り返し	　　　　　　　　　　⭐⭐⭐
-new クラス名()	　　　　　　　　インスタンス生成	　　　　　　⭐⭐⭐
-リスト.add(値)	　　　　　　　　　リストに追加	　　　　　　　　　　⭐⭐⭐
-リスト.get(添字)	　　　　　リストから取得	　　　　　　⭐⭐⭐
+package	　　　　　　　　　　　　　クラスの住所	　　　　　　　　 ⭐⭐⭐
+import	　　　　　　　　　　　外部クラスの利用宣言	　　　　　　 ⭐⭐⭐
+public class	　　　　　　　　　クラス定義	　　　　　　　　 ⭐⭐⭐
+private 型 変数名	　　　　　フィールド定義	　　　　　　　　 ⭐⭐⭐
+メソッド() { }	　　　　　　　　　メソッド定義	　　　　　　　　 ⭐⭐⭐
+if (条件) { } else { }	　　　　　　条件分岐	　　　　　　　　 ⭐⭐⭐
+for (初期化; 条件; 更新) { }	　　繰り返し	　　　　　　　　　　  ⭐⭐⭐
+new クラス名()	　　　　　　　　インスタンス生成	　　　　　　 ⭐⭐⭐
+リスト.add(値)	　　　　　　　　　リストに追加	　　　　　　　　 ⭐⭐⭐
+リスト.get(添字)	　　　　　リストから取得	　　　　　　　　　　 ⭐⭐⭐
 
 
 レベル2：Spring Boot必須アノテーション
 
 アノテーション	　　　　意味	　　　　　　　　　使用場所
 
-@Service	　ビジネスロジッククラス	　Service層
-@RestController	　API受付クラス	　　　　　　　　Controller層
-@Autowired	　依存性注入	　　　　　　　　Controller層
+@Service	　ビジネスロジッククラス	　      Service層
+@RestController	　API受付クラス	　　　　　　Controller層
+@Autowired	　    依存性注入	　　　　　　　　Controller層
 @PostMapping	　POSTメソッド受付	　　　　Controller層
 @RequestBody	　JSON→Java変換	　　　　Controller層引数
 @CrossOrigin	　CORS許可	　　　　　　　　Controller層
@@ -816,14 +816,14 @@ new クラス名()	　　　　　　　　インスタンス生成	　　　　
 
 レベル3：BigDecimalマスター
 
-メソッド	　　　　　意味	　　　　　　　　　会計での使用例
+メソッド	　　　　　       意味	　　　　　　　　　 会計での使用例
 
 add()	　　　　　　　　足し算	　　　　　　　　取得原価 + 改良費
-subtract()	　　　　引き算	　　　　　　　　取得原価 - 残存価額
-multiply()	　　　　掛け算	　　　　　　　未実現利益 × 持分比率
-divide(値, 桁, 丸め)	割り算（桁指定）	　償却費の計算
-compareTo()	　　　　　比較	　　　　　　　　　簿価 vs 残存価額
-setScale()	　　　小数点桁数指定	　　　　　　四捨五入
+subtract()	　　　　   引き算	　　　　　　　　取得原価 - 残存価額
+multiply()	　　　　   掛け算	　　　　　　　未実現利益 × 持分比率
+divide(値, 桁, 丸め)	 割り算（桁指定）	　       償却費の計算
+compareTo()	　　　　　  比較	　　　　　　　　　  簿価 vs 残存価額
+setScale()	　　　  小数点桁数指定	　　　　　　   四捨五入
 
 
 レベル4：会計知識の実装ポイント
@@ -834,6 +834,7 @@ cost.subtract(residualValue)	　　　償却可能限度額	　　　法定耐�
 if (year == usefulLife)	　　　　　　　　最終年調整	　　　　残存価額ぴったりにする
 "ASSET"/"LIABILITY"	　　　　　　　一時差異の種類	　　　　　仕訳が逆になる
 unrealizedProfit - consolidatedPortion	少数株主負担	　　　　アップストリームの核心
+
 
 
 
